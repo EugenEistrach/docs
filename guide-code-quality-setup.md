@@ -17,11 +17,7 @@ Complete quality tooling setup: OxLint, TypeScript, Prettier, Knip, Taze. Use th
 
 ```bash
 # Core tools
-bun add -D oxlint prettier knip taze simple-git-hooks lint-staged
-
-# Prettier plugin for Tailwind (optional, Tailwind projects only)
-bun add -D prettier-plugin-tailwindcss
-
+bun add -D oxlint prettier knip taze simple-git-hooks lint-staged prettier-plugin-tailwindcss
 # TypeScript - match tsgo version
 bun add -D typescript@5.8 oxlint-tsgolint
 ```
@@ -130,10 +126,10 @@ Check periodically for new plugins.
   "tabWidth": 2,
   "arrowParens": "avoid",
   "endOfLine": "lf",
+  "plugins": ["prettier-plugin-tailwindcss"],
+  "tailwindFunctions": ["cn", "clsx", "cva"],
   "plugins": ["prettier-plugin-tailwindcss"]
 }
-```
-
 **Do you need `.prettierignore`?**
 
 **No** - Prettier uses `.gitignore` by default (`--ignore-path` defaults to `[.gitignore, .prettierignore]`).
@@ -430,7 +426,12 @@ Create `.vscode/extensions.json`:
 
 ```json
 {
-  "recommendations": ["oxc.oxc-vscode", "esbenp.prettier-vscode", "typescriptteam.native-preview"]
+  "recommendations": [
+    "oxc.oxc-vscode",
+    "esbenp.prettier-vscode",
+    "typescriptteam.native-preview",
+    "bradlc.vscode-tailwindcss"
+  ]
 }
 ```
 
@@ -460,6 +461,9 @@ Create `.vscode/settings.json`:
   // TypeScript - use tsgo
   "typescript.experimental.useTsgo": true,
   "typescript.tsdk": "node_modules/typescript/lib",
+
+  // Tailwind CSS IntelliSense (optional, Tailwind projects only)
+  "tailwindCSS.classFunctions": ["cn", "clsx", "cva"],
 
   // Disable conflicting tools
   "eslint.enable": false,
