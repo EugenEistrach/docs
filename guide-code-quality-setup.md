@@ -19,6 +19,9 @@ Complete quality tooling setup: OxLint, TypeScript, Prettier, Knip, Taze. Use th
 # Core tools
 bun add -D oxlint prettier knip taze simple-git-hooks lint-staged
 
+# Prettier plugin for Tailwind (optional, Tailwind projects only)
+bun add -D prettier-plugin-tailwindcss
+
 # TypeScript - match tsgo version
 bun add -D typescript@5.8 oxlint-tsgolint
 ```
@@ -126,7 +129,8 @@ Check periodically for new plugins.
   "printWidth": 100,
   "tabWidth": 2,
   "arrowParens": "avoid",
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "plugins": ["prettier-plugin-tailwindcss"]
 }
 ```
 
