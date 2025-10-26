@@ -232,7 +232,7 @@ Add to your `package.json`:
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write .",
     "knip": "knip",
-    "check": "bun run lint && bun run typecheck && bun run knip",
+    "check": "bun run typecheck && bun run lint && bun run knip",
     "upgrade": "taze",
     "prepare": "simple-git-hooks"
   },
@@ -345,11 +345,11 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Lint
-        run: bun run lint
-
       - name: Type check
         run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
 
       - name: Check unused code
         run: bun run knip
@@ -358,8 +358,8 @@ jobs:
 **Step order matters:**
 
 1. Build - Compilation errors
-2. Lint - Code issues
-3. Type check - Type errors
+2. Type check - Type errors (run first, most fundamental)
+3. Lint - Code issues
 4. Knip - Dead code
 
 ### GitLab CI: `.gitlab-ci.yml`
@@ -373,8 +373,8 @@ quality:
   script:
     - bun install
     - bun run build
-    - bun run lint
     - bun run typecheck
+    - bun run lint
     - bun run knip
 ```
 
