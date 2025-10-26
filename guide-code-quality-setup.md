@@ -127,9 +127,10 @@ Check periodically for new plugins.
   "arrowParens": "avoid",
   "endOfLine": "lf",
   "plugins": ["prettier-plugin-tailwindcss"],
-  "tailwindFunctions": ["cn", "clsx", "cva"],
-  "plugins": ["prettier-plugin-tailwindcss"]
+  "tailwindFunctions": ["cn", "clsx", "cva"]
 }
+```
+
 **Do you need `.prettierignore`?**
 
 **No** - Prettier uses `.gitignore` by default (`--ignore-path` defaults to `[.gitignore, .prettierignore]`).
@@ -208,6 +209,15 @@ export default defineConfig({
 **Why exclude TypeScript packages?**
 
 tsgo is based on a specific TypeScript version. Updating TypeScript independently breaks the alignment. Always check https://github.com/microsoft/typescript-go for the correct base version before updating.
+
+**IMPORTANT: Taze requires proper semver in package.json**
+
+Taze only works with proper semver versions:
+
+✅ **Works:** `"next": "^14.0.0"`, `"react": "~18.2.0"`
+❌ **Doesn't work:** `"next": "14"`, `"react": "18"`
+
+Bare numbers are treated as "satisfied" ranges. Always use `^`, `~`, or explicit versions.
 
 ---
 
@@ -401,6 +411,8 @@ Disable built-in linting/type checking if present.
 
 ## Setup Checklist
 
+### New Project
+
 - [ ] Install dependencies
 - [ ] Verify `tsconfig.json` settings
 - [ ] Create `.oxlintrc.json`
@@ -415,6 +427,63 @@ Disable built-in linting/type checking if present.
 - [ ] Create `.github/workflows/ci.yml`
 - [ ] Run `bun run check` to verify
 - [ ] Commit and push to test CI
+
+### Existing Project Migration
+
+**Phase 1: Clean Migration**
+
+- [ ] Migrate to Bun: `bun install` (creates `bun.lockb`)
+- [ ] Remove old package managers: `rm -rf package-lock.json yarn.lock pnpm-lock.yaml node_modules`
+- [ ] Reinstall with Bun: `bun install`
+- [ ] Remove ESLint: `bun remove eslint @eslint/* eslint-*`
+- [ ] Remove ESLint config: `rm -f .eslintrc* eslint.config.*`
+- [ ] Install quality tools (see Installation section)
+- [ ] Verify `tsconfig.json` settings
+- [ ] Create `.oxlintrc.json`
+- [ ] Create `.prettierrc`
+- [ ] Create `knip.ts`
+- [ ] Create `taze.config.ts`
+- [ ] Create `.vscode/extensions.json`
+- [ ] Create `.vscode/settings.json`
+- [ ] Update `package.json` scripts (remove ESLint scripts, add new scripts)
+- [ ] Add git hooks config to `package.json`
+- [ ] Run `bun run prepare`
+- [ ] Update CI config (remove ESLint, add OxLint)
+
+**Phase 2: Initial Quality Check** (Ignore all errors for now)
+
+- [ ] Fix package.json versions: ensure all use proper semver (`^14.0.0`), not bare numbers (`14`)
+- [ ] Run `bun run lint` (note issues, don't fix)
+- [ ] Run `bun run typecheck` (note issues, don't fix)
+- [ ] Run `bun run knip` (note issues, don't fix)
+- [ ] Run `bun run upgrade` (upgrade to latest major versions)
+- [ ] Run `bun install`
+- [ ] Commit migration changes
+
+**Phase 3: Fix Issues**
+
+- [ ] Fix TypeScript errors: `bun run typecheck`
+- [ ] Fix lint errors: `bun run lint`
+- [ ] Fix Knip issues (verify each one):
+  - Check if unused exports are actually unused (double-check imports)
+  - Check if unused dependencies are actually unused (search codebase)
+  - Remove confirmed dead code and unused dependencies
+  - Add exceptions to `knip.ts` only for false positives (e.g., UI libraries, framework requirements)
+- [ ] Run `bun run check` until all pass
+- [ ] Test the application works
+- [ ] Commit fixes
+
+**When to Stop and Ask:**
+
+Stop the process and ask for guidance if you encounter:
+
+- Breaking API changes in major version upgrades that require architectural decisions
+- Type errors that require significant refactoring (>100 lines of changes)
+- Knip reporting entire features as unused (possible detection issue)
+- Framework-specific issues you're uncertain about
+- Test failures that aren't obvious to fix
+
+For minor issues (import typos, missing types, obviously dead code), fix without asking.
 
 ---
 
@@ -492,11 +561,23 @@ When opening the project, VSCode prompts to install recommended extensions. Inst
 ### Update dependencies
 
 ```bash
-bun run upgrade  # Updates package.json and installs automatically
+bun run upgrade  # Upgrades ALL packages to latest major versions
 bun run check    # Verify everything works
 ```
 
-Taze updates all packages to latest major versions, except TypeScript (protected in config). If checks fail, investigate and revert specific packages.
+Taze is configured with `mode: 'major'` which upgrades all packages to latest major versions, except TypeScript-related packages (protected in config).
+
+**If checks fail after upgrade:**
+
+1. Run individual checks to isolate the issue:
+   - `bun run typecheck` - Type errors
+   - `bun run lint` - Lint errors
+   - `bun run knip` - Dead code warnings
+2. Fix the breaking changes
+3. If the fix requires architectural decisions or significant refactoring, stop and ask how to proceed
+4. Commit working state
+
+**Never revert upgrades** - either fix the issues or stop and get guidance.
 
 ### Update TypeScript manually
 
