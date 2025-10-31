@@ -321,6 +321,10 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        check: [build, typecheck, lint, knip]
+      fail-fast: false  # Show all errors, don't cancel on first failure
 
     steps:
       - uses: actions/checkout@v4
@@ -342,25 +346,16 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile --no-save
 
-      - name: Build
-        run: bun run build
-
-      - name: Type check
-        run: bun run typecheck
-
-      - name: Lint
-        run: bun run lint
-
-      - name: Check unused code
-        run: bun run knip
+      - name: Run ${{ matrix.check }}
+        run: bun run ${{ matrix.check }}
 ```
 
-**Step order matters:**
+**Why matrix strategy:**
 
-1. Build - Compilation errors
-2. Type check - Type errors (run first, most fundamental)
-3. Lint - Code issues
-4. Knip - Dead code
+- Runs all checks in parallel (build, typecheck, lint, knip)
+- First job populates cache, others reuse it (fast install)
+- `fail-fast: false` ensures all errors are reported
+- Faster CI and better error visibility
 
 ### GitLab CI: `.gitlab-ci.yml`
 
