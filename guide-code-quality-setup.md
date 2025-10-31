@@ -127,9 +127,10 @@ Check periodically for new plugins.
   "arrowParens": "avoid",
   "endOfLine": "lf",
   "plugins": ["prettier-plugin-tailwindcss"],
-  "tailwindFunctions": ["cn", "clsx", "cva"],
-  "plugins": ["prettier-plugin-tailwindcss"]
+  "tailwindFunctions": ["cn", "clsx", "cva"]
 }
+```
+
 **Do you need `.prettierignore`?**
 
 **No** - Prettier uses `.gitignore` by default (`--ignore-path` defaults to `[.gitignore, .prettierignore]`).
@@ -209,6 +210,15 @@ export default defineConfig({
 
 tsgo is based on a specific TypeScript version. Updating TypeScript independently breaks the alignment. Always check https://github.com/microsoft/typescript-go for the correct base version before updating.
 
+**IMPORTANT: Taze requires proper semver in package.json**
+
+Taze only works with proper semver versions:
+
+✅ **Works:** `"next": "^14.0.0"`, `"react": "~18.2.0"`
+❌ **Doesn't work:** `"next": "14"`, `"react": "18"`
+
+Bare numbers are treated as "satisfied" ranges. Always use `^`, `~`, or explicit versions.
+
 ---
 
 ## package.json Scripts
@@ -222,7 +232,7 @@ Add to your `package.json`:
     "typecheck": "tsgo --noEmit",
     "format": "prettier --write .",
     "knip": "knip",
-    "check": "bun run lint && bun run typecheck && bun run knip",
+    "check": "bun run typecheck && bun run lint && bun run knip",
     "upgrade": "taze",
     "prepare": "simple-git-hooks"
   },
@@ -300,17 +310,16 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '.prettierrc'
-      - '.oxlintrc.json'
-      - '.vscode/**'
   push:
     branches: [main]
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        check: [build, typecheck, lint, knip]
+      fail-fast: false  # Don't cancel other checks on first failure
 
     steps:
       - uses: actions/checkout@v4
@@ -332,25 +341,31 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile --no-save
 
-      - name: Build
-        run: bun run build
+      - name: Run ${{ matrix.check }}
+        run: bun run ${{ matrix.check }}
 
-      - name: Lint
-        run: bun run lint
+  CI:
+    runs-on: ubuntu-latest
+    needs: quality
+    if: always()  # Run even if quality jobs fail
 
-      - name: Type check
-        run: bun run typecheck
-
-      - name: Check unused code
-        run: bun run knip
+    steps:
+      - name: Check quality job results
+        run: |
+          if [ "${{ needs.quality.result }}" != "success" ]; then
+            echo "Quality checks failed"
+            exit 1
+          fi
+          echo "All quality checks passed"
 ```
 
-**Step order matters:**
+**Why matrix strategy:**
 
-1. Build - Compilation errors
-2. Lint - Code issues
-3. Type check - Type errors
-4. Knip - Dead code
+- Runs all checks in parallel (build, typecheck, lint, knip)
+- First job populates cache, others reuse it (fast install)
+- `fail-fast: false` ensures all errors are reported
+- Summary "CI" job provides single status check for branch protection
+- Faster CI and better error visibility
 
 ### GitLab CI: `.gitlab-ci.yml`
 
@@ -363,8 +378,8 @@ quality:
   script:
     - bun install
     - bun run build
-    - bun run lint
     - bun run typecheck
+    - bun run lint
     - bun run knip
 ```
 
@@ -401,6 +416,8 @@ Disable built-in linting/type checking if present.
 
 ## Setup Checklist
 
+### New Project
+
 - [ ] Install dependencies
 - [ ] Verify `tsconfig.json` settings
 - [ ] Create `.oxlintrc.json`
@@ -415,6 +432,63 @@ Disable built-in linting/type checking if present.
 - [ ] Create `.github/workflows/ci.yml`
 - [ ] Run `bun run check` to verify
 - [ ] Commit and push to test CI
+
+### Existing Project Migration
+
+**Phase 1: Clean Migration**
+
+- [ ] Migrate to Bun: `bun install` (creates `bun.lockb`)
+- [ ] Remove old package managers: `rm -rf package-lock.json yarn.lock pnpm-lock.yaml node_modules`
+- [ ] Reinstall with Bun: `bun install`
+- [ ] Remove ESLint: `bun remove eslint @eslint/* eslint-*`
+- [ ] Remove ESLint config: `rm -f .eslintrc* eslint.config.*`
+- [ ] Install quality tools (see Installation section)
+- [ ] Verify `tsconfig.json` settings
+- [ ] Create `.oxlintrc.json`
+- [ ] Create `.prettierrc`
+- [ ] Create `knip.ts`
+- [ ] Create `taze.config.ts`
+- [ ] Create `.vscode/extensions.json`
+- [ ] Create `.vscode/settings.json`
+- [ ] Update `package.json` scripts (remove ESLint scripts, add new scripts)
+- [ ] Add git hooks config to `package.json`
+- [ ] Run `bun run prepare`
+- [ ] Update CI config (remove ESLint, add OxLint)
+
+**Phase 2: Initial Quality Check** (Ignore all errors for now)
+
+- [ ] Fix package.json versions: ensure all use proper semver (`^14.0.0`), not bare numbers (`14`)
+- [ ] Run `bun run lint` (note issues, don't fix)
+- [ ] Run `bun run typecheck` (note issues, don't fix)
+- [ ] Run `bun run knip` (note issues, don't fix)
+- [ ] Run `bun run upgrade` (upgrade to latest major versions)
+- [ ] Run `bun install`
+- [ ] Commit migration changes
+
+**Phase 3: Fix Issues**
+
+- [ ] Fix TypeScript errors: `bun run typecheck`
+- [ ] Fix lint errors: `bun run lint`
+- [ ] Fix Knip issues (verify each one):
+  - Check if unused exports are actually unused (double-check imports)
+  - Check if unused dependencies are actually unused (search codebase)
+  - Remove confirmed dead code and unused dependencies
+  - Add exceptions to `knip.ts` only for false positives (e.g., UI libraries, framework requirements)
+- [ ] Run `bun run check` until all pass
+- [ ] Test the application works
+- [ ] Commit fixes
+
+**When to Stop and Ask:**
+
+Stop the process and ask for guidance if you encounter:
+
+- Breaking API changes in major version upgrades that require architectural decisions
+- Type errors that require significant refactoring (>100 lines of changes)
+- Knip reporting entire features as unused (possible detection issue)
+- Framework-specific issues you're uncertain about
+- Test failures that aren't obvious to fix
+
+For minor issues (import typos, missing types, obviously dead code), fix without asking.
 
 ---
 
@@ -492,11 +566,23 @@ When opening the project, VSCode prompts to install recommended extensions. Inst
 ### Update dependencies
 
 ```bash
-bun run upgrade  # Updates package.json and installs automatically
+bun run upgrade  # Upgrades ALL packages to latest major versions
 bun run check    # Verify everything works
 ```
 
-Taze updates all packages to latest major versions, except TypeScript (protected in config). If checks fail, investigate and revert specific packages.
+Taze is configured with `mode: 'major'` which upgrades all packages to latest major versions, except TypeScript-related packages (protected in config).
+
+**If checks fail after upgrade:**
+
+1. Run individual checks to isolate the issue:
+   - `bun run typecheck` - Type errors
+   - `bun run lint` - Lint errors
+   - `bun run knip` - Dead code warnings
+2. Fix the breaking changes
+3. If the fix requires architectural decisions or significant refactoring, stop and ask how to proceed
+4. Commit working state
+
+**Never revert upgrades** - either fix the issues or stop and get guidance.
 
 ### Update TypeScript manually
 
