@@ -310,11 +310,6 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '.prettierrc'
-      - '.oxlintrc.json'
-      - '.vscode/**'
   push:
     branches: [main]
 
