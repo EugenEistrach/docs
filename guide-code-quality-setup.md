@@ -324,7 +324,7 @@ jobs:
     strategy:
       matrix:
         check: [build, typecheck, lint, knip]
-      fail-fast: false  # Show all errors, don't cancel on first failure
+      fail-fast: false  # Don't cancel other checks on first failure
 
     steps:
       - uses: actions/checkout@v4
@@ -348,6 +348,20 @@ jobs:
 
       - name: Run ${{ matrix.check }}
         run: bun run ${{ matrix.check }}
+
+  CI:
+    runs-on: ubuntu-latest
+    needs: quality
+    if: always()  # Run even if quality jobs fail
+
+    steps:
+      - name: Check quality job results
+        run: |
+          if [ "${{ needs.quality.result }}" != "success" ]; then
+            echo "Quality checks failed"
+            exit 1
+          fi
+          echo "All quality checks passed"
 ```
 
 **Why matrix strategy:**
@@ -355,6 +369,7 @@ jobs:
 - Runs all checks in parallel (build, typecheck, lint, knip)
 - First job populates cache, others reuse it (fast install)
 - `fail-fast: false` ensures all errors are reported
+- Summary "CI" job provides single status check for branch protection
 - Faster CI and better error visibility
 
 ### GitLab CI: `.gitlab-ci.yml`
